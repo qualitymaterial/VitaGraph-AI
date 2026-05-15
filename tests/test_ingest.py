@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
 import os
-from ingest_rxiv import fetch_rss_feed, download_pdf, extract_text_from_pdf
+from vitagraph.core.ingest_rxiv import fetch_rss_feed, download_pdf, extract_text_from_pdf
 
 # Mock data for feedparser
 class MockFeed:
@@ -10,7 +10,7 @@ class MockFeed:
         self.bozo = bozo
         self.bozo_exception = bozo_exception
 
-@patch('ingest_rxiv.feedparser.parse')
+@patch('vitagraph.core.ingest_rxiv.feedparser.parse')
 def test_fetch_rss_feed_success(mock_parse):
     # Setup mock
     mock_entry = {
@@ -28,7 +28,7 @@ def test_fetch_rss_feed_success(mock_parse):
     assert entries[0]["title"] == "Test Paper"
     assert entries[0]["doi"] == "10.1234/5678"
 
-@patch('ingest_rxiv.feedparser.parse')
+@patch('vitagraph.core.ingest_rxiv.feedparser.parse')
 def test_fetch_rss_feed_bozo_error(mock_parse):
     mock_parse.return_value = MockFeed([], bozo=1, bozo_exception=Exception("Bad feed"))
     
@@ -36,7 +36,7 @@ def test_fetch_rss_feed_bozo_error(mock_parse):
     
     assert len(entries) == 0
 
-@patch('ingest_rxiv.cloudscraper.create_scraper')
+@patch('vitagraph.core.ingest_rxiv.cloudscraper.create_scraper')
 def test_download_pdf_success(mock_create_scraper, tmp_path):
     # Setup mock response
     mock_scraper = MagicMock()
@@ -55,7 +55,7 @@ def test_download_pdf_success(mock_create_scraper, tmp_path):
     with open(save_path, "rb") as f:
         assert f.read() == b"pdf content chunks"
 
-@patch('ingest_rxiv.cloudscraper.create_scraper')
+@patch('vitagraph.core.ingest_rxiv.cloudscraper.create_scraper')
 def test_download_pdf_failure(mock_create_scraper, tmp_path):
     mock_scraper = MagicMock()
     mock_response = MagicMock()
@@ -71,7 +71,7 @@ def test_download_pdf_failure(mock_create_scraper, tmp_path):
     assert result is False
     assert not os.path.exists(save_path)
 
-@patch('ingest_rxiv.fitz.open')
+@patch('vitagraph.core.ingest_rxiv.fitz.open')
 def test_extract_text_from_pdf_success(mock_fitz_open, tmp_path):
     # Create a dummy file so os.path.exists passes
     pdf_path = tmp_path / "dummy.pdf"
@@ -94,7 +94,8 @@ def test_extract_text_from_pdf_success(mock_fitz_open, tmp_path):
 def test_extract_text_from_pdf_not_found(tmp_path):
     pdf_path = tmp_path / "non_existent.pdf"
     
-    text = extract_text_from_pdf(str(pdf_path))
+    # Pass allow_mock_fallback=True to trigger the mock text return
+    text = extract_text_from_pdf(str(pdf_path), allow_mock_fallback=True)
     
     assert text is not None
     assert "Mock text" in text

@@ -1,7 +1,7 @@
 import pytest
 import os
 from unittest.mock import MagicMock, patch
-from hypothesis import find_missing_links, evaluate_hypothesis, HypothesisEvaluation, generate_markdown_report
+from vitagraph.core.hypothesis import find_missing_links, evaluate_hypothesis, HypothesisEvaluation, generate_markdown_report
 
 def test_find_missing_links():
     mock_driver = MagicMock()
@@ -24,7 +24,7 @@ def test_find_missing_links():
     assert results[0]["source"] == "A"
     assert results[0]["target"] == "C"
 
-@patch('hypothesis.genai.Client')
+@patch('vitagraph.core.hypothesis.genai.Client')
 @patch.dict('os.environ', {'GEMINI_API_KEY': 'fake-key'})
 def test_evaluate_hypothesis(mock_client_class):
     mock_client = MagicMock()

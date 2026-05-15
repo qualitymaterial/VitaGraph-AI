@@ -1,9 +1,9 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from schemas import ExtractionResult, Entity, Relationship
-from extract import extract_relationships
+from vitagraph.core.schemas import ExtractionResult, Entity, Relationship
+from vitagraph.core.extract import extract_relationships
 
-@patch('extract.genai.Client')
+@patch('vitagraph.core.extract.genai.Client')
 @patch.dict('os.environ', {'GEMINI_API_KEY': 'fake-key'})
 def test_extract_relationships_success(mock_client_class):
     # Setup mock

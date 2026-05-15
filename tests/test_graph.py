@@ -1,9 +1,9 @@
 import pytest
 from unittest.mock import MagicMock, patch
-from schemas import ExtractionResult, Entity, Relationship
-from graph import get_neo4j_driver, insert_extraction_result
+from vitagraph.core.schemas import ExtractionResult, Entity, Relationship
+from vitagraph.core.graph import get_neo4j_driver, insert_extraction_result
 
-@patch('graph.GraphDatabase.driver')
+@patch('vitagraph.core.graph.GraphDatabase.driver')
 @patch.dict('os.environ', {'NEO4J_URI': 'bolt://fake:7687'})
 def test_get_neo4j_driver_success(mock_driver):
     mock_instance = MagicMock()
@@ -14,7 +14,7 @@ def test_get_neo4j_driver_success(mock_driver):
     assert driver == mock_instance
     mock_instance.verify_connectivity.assert_called_once()
 
-@patch('graph.GraphDatabase.driver')
+@patch('vitagraph.core.graph.GraphDatabase.driver')
 def test_get_neo4j_driver_failure(mock_driver):
     mock_driver.side_effect = Exception("Connection refused")
     

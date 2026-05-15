@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vitagraph"
+version = "0.1.0"
+description = "Autonomous Longevity Research Agent"
+authors = [
+    { name = "VitaDAO Contributors" }
+]
+dependencies = [
+    "feedparser>=6.0.12",
+    "requests>=2.34.2",
+    "PyMuPDF>=1.27.2.3",
+    "cloudscraper>=1.2.71",
+    "pydantic>=2.13.4",
+    "google-genai>=2.3.0",
+    "neo4j>=6.2.0",
+    "typer>=0.25.1",
+    "rich>=15.0.0",
+]
+requires-python = ">=3.10"
+
+[project.scripts]
+vitagraph = "vitagraph.main:app"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["vitagraph*"]
