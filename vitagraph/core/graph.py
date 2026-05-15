@@ -2,17 +2,19 @@ import os
 import logging
 from neo4j import GraphDatabase
 from .schemas import ExtractionResult
+from ..config import config_manager
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 def get_neo4j_driver():
     """
-    Initializes and returns a Neo4j driver using environment variables.
+    Initializes and returns a Neo4j driver using the global configuration.
     """
-    uri = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
-    user = os.environ.get("NEO4J_USER", "neo4j")
-    password = os.environ.get("NEO4J_PASSWORD", "password")
+    config = config_manager.config
+    uri = config.neo4j_uri
+    user = config.neo4j_user
+    password = config.neo4j_password
     
     try:
         driver = GraphDatabase.driver(uri, auth=(user, password))

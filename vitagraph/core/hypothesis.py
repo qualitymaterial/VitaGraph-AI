@@ -3,6 +3,7 @@ import logging
 from pydantic import BaseModel, Field
 from google import genai
 from google.genai import types
+from ..config import config_manager
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -55,12 +56,14 @@ def evaluate_hypothesis(missing_link: dict) -> HypothesisEvaluation:
     """
     Sends the missing link context to the LLM to evaluate biological plausibility.
     """
-    api_key = os.environ.get("GEMINI_API_KEY")
+    config = config_manager.config
+    api_key = config.gemini_api_key
+    
     if not api_key:
-        logger.error("GEMINI_API_KEY not set.")
+        logger.error("GEMINI_API_KEY not found in config.")
         return HypothesisEvaluation(
             is_plausible=False, 
-            reasoning="API key missing, mocked evaluation.", 
+            reasoning="API key missing, evaluation failed.", 
             novelty_score=0, 
             suggested_experiment="N/A"
         )

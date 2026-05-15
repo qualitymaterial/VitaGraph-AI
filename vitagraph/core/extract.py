@@ -3,6 +3,7 @@ import logging
 from google import genai
 from google.genai import types
 from .schemas import ExtractionResult
+from ..config import config_manager
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -30,9 +31,11 @@ def extract_relationships(text: str) -> ExtractionResult:
     Extracts biological entities and relationships from the provided text using the Gemini model.
     """
     # Assuming the API key is set in the environment variable GEMINI_API_KEY
-    api_key = os.environ.get("GEMINI_API_KEY")
+    config = config_manager.config
+    api_key = config.gemini_api_key
+    
     if not api_key:
-        logger.error("GEMINI_API_KEY environment variable not set. Cannot extract relationships.")
+        logger.error("GEMINI_API_KEY not found in config. Extraction failed.")
         return ExtractionResult(entities=[], relationships=[])
         
     client = genai.Client(api_key=api_key)
