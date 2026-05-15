@@ -21,3 +21,4 @@ data/pdfs/
 .Trashes
 ehthumbs.db
 Thumbs.db
+.worktrees/
