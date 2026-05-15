@@ -9,6 +9,7 @@ from .core.ingest_rxiv import fetch_rss_feed, download_pdf, extract_text_from_pd
 from .core.extract import extract_relationships
 from .core.graph import get_neo4j_driver, insert_extraction_result
 from .core.hypothesis import find_missing_links, evaluate_hypothesis, generate_markdown_report
+from .agent import ResearchOracle
 
 app = typer.Typer(
     name="vitagraph",
@@ -16,6 +17,17 @@ app = typer.Typer(
     add_completion=False,
 )
 console = Console()
+
+@app.command()
+def research(
+    topic: str = typer.Argument(..., help="Biological topic or compound to research"),
+    limit: int = typer.Option(3, help="Max number of papers to ingest")
+):
+    """
+    Run an autonomous research loop on a specific topic.
+    """
+    oracle = ResearchOracle(console=console)
+    oracle.run_topic_research(topic, limit=limit)
 
 @app.command()
 def ingest(
