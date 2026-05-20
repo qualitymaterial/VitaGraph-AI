@@ -160,6 +160,99 @@ def hypothesis(
     driver.close()
 
 @app.command()
+def paper(
+    query: str = typer.Argument(..., help="DOI or title keyword to look up"),
+):
+    """
+    Show full details for a paper: abstract, source URL, and all extracted relationships.
+    Accepts a full DOI, partial DOI, or a title keyword.
+    """
+    driver = get_neo4j_driver()
+    if not driver:
+        console.print("[bold red]Failed to connect to Neo4j.[/bold red]")
+        raise typer.Exit(1)
+
+    with driver.session() as session:
+        record = session.run("""
+            MATCH (p:Paper)
+            WHERE p.doi CONTAINS $q OR toLower(p.title) CONTAINS toLower($q)
+            RETURN p.title AS title, p.doi AS doi,
+                   p.abstract AS abstract, p.source_url AS source_url,
+                   p.updated_at AS updated_at
+            ORDER BY p.updated_at DESC
+            LIMIT 1
+        """, {"q": query}).single()
+
+    if not record:
+        console.print(f"[yellow]No paper found matching:[/yellow] {query}")
+        driver.close()
+        return
+
+    doi = record["doi"]
+    ts = record["updated_at"]
+    ingested = datetime.fromtimestamp(ts / 1000).strftime("%Y-%m-%d %H:%M") if ts else "Unknown"
+
+    # ── Header panel ────────────────────────────────────────────────────────
+    from rich.text import Text
+    from rich.rule import Rule
+
+    header = Table.grid(padding=(0, 1))
+    header.add_column(style="dim cyan", width=12)
+    header.add_column()
+    header.add_row("Title",    f"[bold white]{record['title']}[/bold white]")
+    header.add_row("DOI",      f"[cyan]{doi}[/cyan]")
+    if record["source_url"]:
+        header.add_row("Source",   f"[link={record['source_url']}][underline blue]{record['source_url']}[/underline blue][/link]")
+    header.add_row("Ingested", f"[dim]{ingested}[/dim]")
+    console.print(Panel(header, title="[bold magenta]◈ Paper[/bold magenta]", border_style="magenta"))
+
+    # ── Abstract ────────────────────────────────────────────────────────────
+    if record["abstract"]:
+        console.print(Panel(
+            f"[white]{record['abstract']}[/white]",
+            title="[bold cyan]Abstract[/bold cyan]",
+            border_style="cyan",
+        ))
+    else:
+        console.print("[dim]No abstract stored. (Paper was ingested before this feature was added)[/dim]")
+
+    # ── Relationships ────────────────────────────────────────────────────────
+    with driver.session() as session:
+        rows = list(session.run("""
+            MATCH (s:Entity)-[r]->(t:Entity)
+            WHERE r.doi = $doi
+            RETURN s.name AS source, type(r) AS rel_type,
+                   t.name AS target, r.evidence AS evidence,
+                   r.confidence AS confidence
+            ORDER BY r.confidence DESC
+        """, {"doi": doi}))
+
+    if rows:
+        rel_table = Table(box=None, expand=True, padding=(0, 1))
+        rel_table.add_column("Source",       style="cyan",    max_width=22)
+        rel_table.add_column("Relationship", style="magenta", max_width=16)
+        rel_table.add_column("Target",       style="cyan",    max_width=22)
+        rel_table.add_column("Conf",         style="dim",     width=5)
+        rel_table.add_column("Evidence",     style="dim white")
+
+        for row in rows:
+            conf = f"{row['confidence']:.2f}" if row["confidence"] else "—"
+            evidence = (row["evidence"] or "")[:120] + ("…" if len(row["evidence"] or "") > 120 else "")
+            rel_table.add_row(row["source"], row["rel_type"], row["target"], conf, f'"{evidence}"')
+
+        console.print(Panel(
+            rel_table,
+            title=f"[bold green]Extracted Relationships ({len(rows)})[/bold green]",
+            border_style="green",
+        ))
+    else:
+        console.print("[dim]No relationships found for this paper. "
+                      "(Relationships from older ingestions won't have a DOI tag — re-ingest to backfill.)[/dim]")
+
+    driver.close()
+
+
+@app.command()
 def papers(
     limit: int = typer.Option(10, help="Number of papers to show")
 ):
@@ -313,6 +406,7 @@ def shell():
                 table.add_column("Shortcut", style="dim")
                 table.add_column("Description", style="white")
                 table.add_row("/research <topic>", "/r", "Start autonomous research on a topic")
+                table.add_row("/paper <doi|keyword>", "", "View abstract, URL, and relationships for a paper")
                 table.add_row("/papers", "/p", "List all ingested papers")
                 table.add_row("/entities", "/e", "List all discovered entities")
                 table.add_row("/hypothesis", "/h", "Search for new discoveries")
@@ -340,6 +434,11 @@ def shell():
                 if topic:
                     oracle = ResearchOracle(console=console)
                     oracle.run_topic_research(topic)
+
+            elif base == "/paper":
+                query = args or Prompt.ask("[cyan]DOI or title keyword[/cyan]")
+                if query:
+                    paper(query)
 
             elif base == "/papers":
                 papers()

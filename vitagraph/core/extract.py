@@ -50,7 +50,8 @@ For each relationship you MUST extract the exact verbatim sentence from the text
 Only extract relationships where both entities are clearly named in the text.
 """
 
-def extract_relationships(text: str, paper_title: str = None, doi: str = None) -> ExtractionResult:
+def extract_relationships(text: str, paper_title: str = None, doi: str = None,
+                          abstract: str = None, source_url: str = None) -> ExtractionResult:
     """
     Extracts biological entities and relationships from the provided text using the Gemini model.
     """
@@ -79,6 +80,8 @@ def extract_relationships(text: str, paper_title: str = None, doi: str = None) -
         result = ExtractionResult.model_validate_json(response.text)
         result.paper_title = paper_title
         result.doi = doi
+        result.abstract = abstract
+        result.source_url = source_url
         return result
         
     except Exception as e:

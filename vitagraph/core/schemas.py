@@ -30,6 +30,8 @@ class Relationship(BaseModel):
 class ExtractionResult(BaseModel):
     paper_title: Optional[str] = Field(None, description="Title of the paper knowledge was extracted from.")
     doi: Optional[str] = Field(None, description="DOI of the paper.")
+    abstract: Optional[str] = Field(None, description="Abstract or summary of the paper.")
+    source_url: Optional[str] = Field(None, description="URL to the original paper.")
     entities: List[Entity] = Field(default_factory=list, description="All biological entities extracted from the text.")
     relationships: List[Relationship] = Field(default_factory=list, description="All relationships extracted between the entities.")
 

@@ -90,7 +90,13 @@ class ResearchOracle:
                     text = extract_text_from_pdf(save_path, title)
                     if text:
                         dashboard.logs.append("🧠 Extracting knowledge...")
-                        result = extract_relationships(text, paper_title=title, doi=doi)
+                        result = extract_relationships(
+                            text,
+                            paper_title=title,
+                            doi=doi,
+                            abstract=entry.get("summary", ""),
+                            source_url=entry.get("link", ""),
+                        )
                         
                         # Show Entities in the Feed immediately
                         if result.entities:

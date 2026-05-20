@@ -154,8 +154,16 @@ def insert_extraction_result(driver, result: ExtractionResult):
         if result.doi:
             session.run("""
                 MERGE (p:Paper {doi: $doi})
-                SET p.title = $title, p.updated_at = timestamp()
-            """, {"doi": result.doi, "title": result.paper_title or "Unknown"})
+                SET p.title      = $title,
+                    p.abstract   = $abstract,
+                    p.source_url = $source_url,
+                    p.updated_at = timestamp()
+            """, {
+                "doi":        result.doi,
+                "title":      result.paper_title or "Unknown",
+                "abstract":   result.abstract or "",
+                "source_url": result.source_url or "",
+            })
 
         for rel in result.relationships:
             rel_type = rel.relationship_type.upper().replace(" ", "_").replace("-", "_")
@@ -172,23 +180,19 @@ def insert_extraction_result(driver, result: ExtractionResult):
             ON CREATE SET target.created_at = timestamp()
 
             MERGE (source)-[r:{rel_type}]->(target)
-            SET r.evidence = $evidence, r.confidence = $confidence, r.updated_at = timestamp()
+            SET r.evidence    = $evidence,
+                r.confidence  = $confidence,
+                r.doi         = $doi,
+                r.updated_at  = timestamp()
             """
-
-            if result.doi:
-                cypher += """
-                WITH r
-                MATCH (p:Paper {doi: $doi})
-                MERGE (p)-[:MENTIONS]->(r)
-                """
 
             try:
                 session.run(cypher, {
                     "source_name": source_name,
                     "target_name": target_name,
-                    "evidence": rel.evidence,
-                    "confidence": rel.confidence,
-                    "doi": result.doi,
+                    "evidence":    rel.evidence,
+                    "confidence":  rel.confidence,
+                    "doi":         result.doi,
                 })
             except Exception as e:
                 logger.error(f"Error inserting {source_name} -[{rel_type}]-> {target_name}: {e}")
