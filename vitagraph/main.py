@@ -11,7 +11,7 @@ from rich.table import Table
 from .config import config_manager, Config
 from .core.ingest_rxiv import fetch_biorxiv_api, download_pdf, extract_text_from_pdf
 from .core.extract import extract_relationships
-from .core.graph import get_neo4j_driver, insert_extraction_result
+from .core.graph import get_neo4j_driver, insert_extraction_result, normalize_entities
 from .core.hypothesis import find_missing_links, evaluate_hypothesis, generate_markdown_report
 from .agent import ResearchOracle
 
@@ -241,6 +241,40 @@ def entities(
     driver.close()
 
 @app.command()
+def normalize():
+    """
+    Merge duplicate entity nodes in the graph caused by name variants or synonym overlap.
+    Safe to run at any time — checks for case-insensitive duplicates (mTOR vs MTOR)
+    and synonym-based duplicates (rapamycin vs sirolimus if linked via synonyms).
+    """
+    driver = get_neo4j_driver()
+    if not driver:
+        console.print("[bold red]Failed to connect to Neo4j.[/bold red]")
+        raise typer.Exit(1)
+
+    # Show before stats
+    with driver.session() as session:
+        before = session.run("MATCH (e:Entity) RETURN count(e) AS c").single()["c"]
+
+    console.print(f"[dim]Entity count before:[/dim] {before}")
+    console.print("[cyan]Scanning for duplicate entities...[/cyan]")
+
+    result = normalize_entities(driver)
+    merged = result["merged"]
+
+    with driver.session() as session:
+        after = session.run("MATCH (e:Entity) RETURN count(e) AS c").single()["c"]
+
+    driver.close()
+
+    if merged == 0:
+        console.print("[green]✓ Graph is clean — no duplicate entities found.[/green]")
+    else:
+        console.print(f"[bold green]✓ Merged {merged} duplicate node(s).[/bold green] "
+                      f"[dim]{before} → {after} entities[/dim]")
+
+
+@app.command()
 def shell():
     """
     Enter the interactive VitaGraph AI Command Deck.
@@ -266,7 +300,7 @@ def shell():
             args = parts[1].strip() if len(parts) > 1 else ""
 
             # Expand shortcuts before routing
-            shortcuts = {"/r": "/research", "/p": "/papers", "/e": "/entities", "/h": "/hypothesis", "/s": "/setup", "/q": "/exit"}
+            shortcuts = {"/r": "/research", "/p": "/papers", "/e": "/entities", "/h": "/hypothesis", "/n": "/normalize", "/s": "/setup", "/q": "/exit"}
             base = shortcuts.get(base, base)
 
             if base in ["/exit", "/quit", "exit", "quit"]:
@@ -282,6 +316,7 @@ def shell():
                 table.add_row("/papers", "/p", "List all ingested papers")
                 table.add_row("/entities", "/e", "List all discovered entities")
                 table.add_row("/hypothesis", "/h", "Search for new discoveries")
+                table.add_row("/normalize", "/n", "Merge duplicate entity nodes in graph")
                 table.add_row("/status", "", "Check config and connection health")
                 table.add_row("/setup", "/s", "Update configuration")
                 table.add_row("/exit", "/q", "Leave the Command Deck")
@@ -314,6 +349,9 @@ def shell():
 
             elif base == "/hypothesis":
                 hypothesis()
+
+            elif base == "/normalize":
+                normalize()
 
             elif base == "/status":
                 status()
