@@ -149,10 +149,11 @@ class ResearchOracle:
                         dashboard.logs.append(f"Evaluating: {link['source']} ➔ {link['target']}")
                         eval_result = evaluate_hypothesis(link)
                         if eval_result.is_plausible:
-                            dashboard.logs.append("🔥 PLAUSIBLE HYPOTHESIS FOUND!")
+                            conf_pct = f"{eval_result.confidence:.0%}"
+                            dashboard.logs.append(f"🔥 PLAUSIBLE HYPOTHESIS! ({conf_pct} confidence, {eval_result.novelty.value})")
                             dashboard.discoveries.append({"name": f"NEW: {link['source']} ➔ {link['target']}", "type": "Hypothesis"})
                             hyp_topic = f"{link['source']} to {link['target']}"
-                            report_content = generate_markdown_report(hyp_topic, [link])
+                            report_content = generate_markdown_report(hyp_topic, [(link, eval_result)])
                             hyp_dir = os.path.join(self.config.output_dir, "hypotheses")
                             os.makedirs(hyp_dir, exist_ok=True)
                             report_path = os.path.join(hyp_dir, f"agent_{i+1}_{topic.replace(' ', '_')}.md")

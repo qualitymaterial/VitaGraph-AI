@@ -130,34 +130,65 @@ def hypothesis(
     topic: str = typer.Option("General Longevity", help="Topic for the report")
 ):
     """
-    Query the graph for missing links and evaluate new hypotheses.
+    Query the graph for missing links, evaluate each with Gemini, and generate a report.
     """
-    console.print("[bold green]Searching for novel hypotheses...[/bold green]")
-    
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+
     driver = get_neo4j_driver()
     if not driver:
         console.print("[bold red]Failed to connect to Neo4j.[/bold red]")
         raise typer.Exit(1)
-        
+
+    console.print("[bold green]Searching for transitive links...[/bold green]")
     links = find_missing_links(driver)
+    driver.close()
+
     if not links:
-        console.print("[yellow]No missing links found in the current graph.[/yellow]")
-        driver.close()
+        console.print("[yellow]No missing links found. Ingest more papers to expand the graph.[/yellow]")
         return
 
-    # Generate the professional Markdown report
-    report_content = generate_markdown_report(topic, links)
-    
-    # Save report to the Wiki
-    os.makedirs("wiki/Reports", exist_ok=True)
+    console.print(f"[cyan]Found {len(links)} candidate path(s). Evaluating with Gemini...[/cyan]")
+
+    evaluated = []
+    with Progress(SpinnerColumn(), TextColumn("{task.description}"), console=console) as progress:
+        task = progress.add_task("Evaluating...", total=len(links))
+        for link in links:
+            progress.update(task, description=f"[dim]Evaluating: {link['source']} → {link['target']}[/dim]")
+            ev = evaluate_hypothesis(link)
+            if ev.is_plausible:
+                evaluated.append((link, ev))
+            progress.advance(task)
+
+    if not evaluated:
+        console.print("[yellow]No plausible hypotheses found in this pass.[/yellow]")
+        return
+
+    console.print(f"[bold green]✓ {len(evaluated)} plausible hypothesis/es found.[/bold green]")
+
+    # Print a quick summary table
+    summary = Table(title="Hypothesis Summary", box=None, padding=(0, 2))
+    summary.add_column("Source → Target", style="cyan")
+    summary.add_column("Conf", style="bold green", justify="right")
+    summary.add_column("Novelty", style="magenta")
+    for link, ev in sorted(evaluated, key=lambda x: x[1].confidence, reverse=True):
+        summary.add_row(
+            f"{link['source']} → {link['target']}",
+            f"{ev.confidence:.0%}",
+            ev.novelty.value,
+        )
+    console.print(summary)
+
+    report_content = generate_markdown_report(topic, evaluated)
+
+    out_dir = "output/hypotheses"
+    os.makedirs(out_dir, exist_ok=True)
     report_filename = f"discovery_{topic.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
-    report_path = os.path.join("wiki/Reports", report_filename)
-    
+    report_path = os.path.join(out_dir, report_filename)
+
     with open(report_path, "w") as f:
         f.write(report_content)
-    
-    console.print(f"\n[bold green]✔ Discovery Report generated:[/bold green] [cyan]{report_path}[/cyan]")
-    driver.close()
+
+    console.print(f"\n[bold green]✔ Report saved:[/bold green] [cyan]{report_path}[/cyan]")
 
 @app.command()
 def paper(

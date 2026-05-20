@@ -35,6 +35,13 @@ class ExtractionResult(BaseModel):
     entities: List[Entity] = Field(default_factory=list, description="All biological entities extracted from the text.")
     relationships: List[Relationship] = Field(default_factory=list, description="All relationships extracted between the entities.")
 
+class NoveltyLevel(str, Enum):
+    KNOWN        = "known"
+    LIKELY_KNOWN = "likely_known"
+    NOVEL        = "novel"
+
 class HypothesisEvaluation(BaseModel):
-    is_plausible: bool = Field(..., description="Whether the transitive hypothesis is biologically plausible.")
-    reasoning: str = Field(..., description="Short explanation of why this hypothesis is or is not plausible.")
+    is_plausible: bool        = Field(..., description="Whether the transitive hypothesis is biologically coherent and plausible.")
+    confidence:   float       = Field(..., description="Confidence score 0.0–1.0 based on evidence quality and biological logic.")
+    novelty:      NoveltyLevel = Field(..., description="Whether this relationship is already known, suspected, or genuinely novel.")
+    reasoning:    str         = Field(..., description="2-3 sentence explanation citing specific biological mechanisms.")
