@@ -22,3 +22,9 @@ data/pdfs/
 ehthumbs.db
 Thumbs.db
 .worktrees/
+
+# Generated / tooling artifacts
+.superpowers/
+vitagraph.egg-info/
+wiki/
+docs/
