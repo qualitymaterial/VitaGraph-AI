@@ -3,17 +3,25 @@ from typing import List, Optional
 from enum import Enum
 
 class EntityType(str, Enum):
-    COMPOUND = "Compound"
-    TARGET = "Target"
-    PATHWAY = "Pathway"
-    DISEASE = "Disease"
+    COMPOUND  = "Compound"   # small molecules, drugs, metabolites, supplements
+    TARGET    = "Target"     # genes and proteins — use HGNC gene symbol
+    PATHWAY   = "Pathway"    # signaling cascades and metabolic pathways
+    DISEASE   = "Disease"    # age-related pathologies and conditions
+    BIOMARKER = "Biomarker"  # measurable indicators (telomere length, IGF-1 levels)
+    ORGANISM  = "Organism"   # model organisms (C. elegans, M. musculus, S. cerevisiae)
+    CELL_TYPE = "CellType"   # cell types and states (senescent cell, stem cell, hepatocyte)
+    PHENOTYPE = "Phenotype"  # observable outcomes (lifespan extension, muscle atrophy)
 
 class RelationshipType(str, Enum):
-    UPREGULATES = "Upregulates"
-    DOWNREGULATES = "Downregulates"
-    INTERACTSWITH = "InteractsWith"
-    INHIBITS = "Inhibits"
-    ACTIVATES = "Activates"
+    UPREGULATES             = "Upregulates"
+    DOWNREGULATES           = "Downregulates"
+    INTERACTSWITH           = "InteractsWith"
+    INHIBITS                = "Inhibits"
+    ACTIVATES               = "Activates"
+    REGULATES_EXPRESSION_OF = "RegulatesExpressionOf"  # transcriptional/epigenetic regulation
+    ASSOCIATED_WITH         = "AssociatedWith"          # epidemiological or correlative association
+    EXTENDS_LIFESPAN_OF     = "ExtendsLifespanOf"       # compound/gene extends lifespan in organism
+    BIOMARKER_FOR           = "BiomarkerFor"            # entity is a diagnostic/prognostic marker
 
 class Entity(BaseModel):
     name: str = Field(..., description="The standard name of the biological entity.")
