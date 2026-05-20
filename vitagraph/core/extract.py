@@ -5,7 +5,6 @@ from google.genai import types
 from .schemas import ExtractionResult
 from ..config import config_manager
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """
@@ -26,11 +25,10 @@ Extract relationships between these entities. Use standardized relationship type
 For each relationship, you MUST extract the exact verbatim sentence from the text as evidence.
 """
 
-def extract_relationships(text: str) -> ExtractionResult:
+def extract_relationships(text: str, paper_title: str = None, doi: str = None) -> ExtractionResult:
     """
     Extracts biological entities and relationships from the provided text using the Gemini model.
     """
-    # Assuming the API key is set in the environment variable GEMINI_API_KEY
     config = config_manager.config
     api_key = config.gemini_api_key
     
@@ -53,9 +51,10 @@ def extract_relationships(text: str) -> ExtractionResult:
             ),
         )
         
-        # Parse the JSON response back into our Pydantic model
-        # The SDK returns the text as a JSON string matching the schema
-        return ExtractionResult.model_validate_json(response.text)
+        result = ExtractionResult.model_validate_json(response.text)
+        result.paper_title = paper_title
+        result.doi = doi
+        return result
         
     except Exception as e:
         logger.error(f"Error during LLM extraction: {e}")

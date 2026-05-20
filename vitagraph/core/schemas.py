@@ -28,5 +28,11 @@ class Relationship(BaseModel):
     confidence: float = Field(..., description="Confidence score between 0.0 and 1.0 based on how strongly the text asserts this.")
 
 class ExtractionResult(BaseModel):
+    paper_title: Optional[str] = Field(None, description="Title of the paper knowledge was extracted from.")
+    doi: Optional[str] = Field(None, description="DOI of the paper.")
     entities: List[Entity] = Field(default_factory=list, description="All biological entities extracted from the text.")
     relationships: List[Relationship] = Field(default_factory=list, description="All relationships extracted between the entities.")
+
+class HypothesisEvaluation(BaseModel):
+    is_plausible: bool = Field(..., description="Whether the transitive hypothesis is biologically plausible.")
+    reasoning: str = Field(..., description="Short explanation of why this hypothesis is or is not plausible.")

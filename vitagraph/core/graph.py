@@ -4,7 +4,6 @@ from neo4j import GraphDatabase
 from .schemas import ExtractionResult
 from ..config import config_manager
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 def get_neo4j_driver():
@@ -53,9 +52,15 @@ def insert_extraction_result(driver, result: ExtractionResult):
     """
     
     with driver.session() as session:
+        # Create Paper node if metadata exists
+        if result.doi:
+            session.run("""
+                MERGE (p:Paper {doi: $doi})
+                SET p.title = $title, p.updated_at = timestamp()
+            """, {"doi": result.doi, "title": result.paper_title or "Unknown"})
+
         for rel in result.relationships:
             # We construct the Cypher query dynamically for the relationship type 
-            # since Cypher doesn't allow parameterized relationship types directly without APOC
             rel_type = rel.relationship_type.upper().replace(" ", "_").replace("-", "_")
             
             cypher = f"""
@@ -69,11 +74,20 @@ def insert_extraction_result(driver, result: ExtractionResult):
             SET r.evidence = $evidence, r.confidence = $confidence, r.updated_at = timestamp()
             """
             
+            # Link relationship to paper if DOI exists
+            if result.doi:
+                cypher += """
+                WITH r
+                MATCH (p:Paper {doi: $doi})
+                MERGE (p)-[:MENTIONS]->(r)
+                """
+            
             parameters = {
                 "source_name": rel.source_entity,
                 "target_name": rel.target_entity,
                 "evidence": rel.evidence,
-                "confidence": rel.confidence
+                "confidence": rel.confidence,
+                "doi": result.doi
             }
             
             try:
@@ -81,20 +95,27 @@ def insert_extraction_result(driver, result: ExtractionResult):
             except Exception as e:
                 logger.error(f"Error inserting relationship {rel.source_entity} -[{rel_type}]-> {rel.target_entity}: {e}")
         
-        # We also want to update entity types and synonyms based on the entities list
+        # Update entity types and link to paper
         for entity in result.entities:
             entity_cypher = """
             MERGE (e:Entity {name: $name})
             SET e.type = $entity_type
             """
-            # Add synonyms if any
             if entity.synonyms:
                 entity_cypher += " SET e.synonyms = $synonyms"
             
+            if result.doi:
+                entity_cypher += """
+                WITH e
+                MATCH (p:Paper {doi: $doi})
+                MERGE (p)-[:DESCRIBES]->(e)
+                """
+                
             session.run(entity_cypher, {
                 "name": entity.name, 
                 "entity_type": entity.entity_type,
-                "synonyms": entity.synonyms
+                "synonyms": entity.synonyms,
+                "doi": result.doi
             })
             
     logger.info(f"Successfully inserted {len(result.entities)} entities and {len(result.relationships)} relationships into Neo4j.")
