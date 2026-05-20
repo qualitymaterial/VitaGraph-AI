@@ -9,29 +9,47 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-def fetch_rss_feed(url: str) -> List[Dict]:
+def fetch_biorxiv_api(topic: str = "", days: int = 7) -> List[Dict]:
     """
-    Fetches an RSS feed and returns a list of parsed entries containing titles, links, and summaries.
+    Fetches papers from the official bioRxiv API for the given number of days.
     """
-    logger.info(f"Fetching RSS feed from: {url}")
-    feed = feedparser.parse(url)
+    import datetime
+    today = datetime.date.today()
+    start_date = today - datetime.timedelta(days=days)
     
-    if feed.bozo:
-        logger.error(f"Error parsing feed: {feed.bozo_exception}")
+    url = f"https://api.biorxiv.org/details/biorxiv/{start_date}/{today}/0"
+    logger.info(f"Fetching papers from bioRxiv API: {url}")
+    
+    try:
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+        collection = data.get("collection", [])
+    except Exception as e:
+        logger.error(f"Failed to fetch from bioRxiv API: {e}")
         return []
 
     entries = []
-    for entry in feed.entries:
-        parsed_entry = {
-            "title": entry.get("title", ""),
-            "link": entry.get("link", ""),
-            "summary": entry.get("summary", ""),
-            "published": entry.get("published", ""),
-            "doi": entry.get("prism_doi", "")  # common for biorxiv
-        }
-        entries.append(parsed_entry)
+    for paper in collection:
+        title = paper.get("title", "")
+        abstract = paper.get("abstract", "")
         
-    logger.info(f"Successfully parsed {len(entries)} entries.")
+        # Simple keyword filtering if a topic is provided
+        if topic and (topic.lower() not in title.lower() and topic.lower() not in abstract.lower()):
+            continue
+            
+        doi = paper.get("doi", "")
+        # Construct link from DOI
+        link = f"https://www.biorxiv.org/content/{doi}"
+        
+        entries.append({
+            "title": title,
+            "link": link,
+            "summary": abstract,
+            "doi": doi
+        })
+        
+    logger.info(f"Successfully retrieved {len(entries)} papers from API.")
     return entries
 
 import cloudscraper
